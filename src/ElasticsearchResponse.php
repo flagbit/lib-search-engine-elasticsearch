@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
+use LizardsAndPumpkins\DataPool\SearchEngine\Exception\NoFacetFieldTransformationRegisteredException;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetField;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldValue;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\ElasticsearchException;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
 use LizardsAndPumpkins\Import\Product\AttributeCode;
 use LizardsAndPumpkins\Import\Product\ProductId;
 
@@ -117,13 +119,57 @@ class ElasticsearchResponse
     private function createFacetField(string $attributeCodeString, array $facetFieldsValues) : FacetField
     {
         $attributeCode = AttributeCode::fromString($attributeCodeString);
-        $facetFieldValues = array_reduce($facetFieldsValues, function ($carry, $fieldData) {
+        $facetFieldValues = array_reduce($facetFieldsValues, function ($carry, $fieldData) use ($attributeCode) {
             if ("" === $fieldData['key']) {
                 return $carry;
             }
-            return array_merge($carry, [new FacetFieldValue($fieldData['key'], $fieldData['doc_count'])]);
+            return array_merge($carry, $this->createFacetFieldValues($attributeCode, $fieldData));
         }, []);
 
         return new FacetField($attributeCode, ...$facetFieldValues);
+    }
+
+    private function createFacetFieldValues(AttributeCode $attributeCode, array $fieldData) : array
+    {
+        $transformationRegistry = $this->facetFieldTransformationRegistry;
+
+        if (isset($fieldData['from']) || isset($fieldData['to'])) {
+            if (!$transformationRegistry->hasTransformationForCode((string) $attributeCode)) {
+                throw new NoFacetFieldTransformationRegisteredException(
+                    sprintf('No facet field transformation is registered for "%s" attribute.', $attributeCode)
+                );
+            }
+
+            $from = (string) ($fieldData['from'] ?? '*');
+            $to = (string) ($fieldData['to'] ?? '*');
+
+            $facetFilterRange = FacetFilterRange::create(
+                $this->getRangeBoundaryValue($from),
+                $this->getRangeBoundaryValue($to)
+            );
+
+            $transformation = $transformationRegistry->getTransformationByCode((string) $attributeCode);
+            $value = $transformation->encode($facetFilterRange);
+
+            return [new FacetFieldValue($value, $fieldData['doc_count'])];
+        }
+
+        $value = $fieldData['key'];
+
+        if ($transformationRegistry->hasTransformationForCode((string) $attributeCode)) {
+            $transformation = $transformationRegistry->getTransformationByCode((string) $attributeCode);
+            $value = $transformation->encode($value);
+        }
+
+        return [new FacetFieldValue($value, $fieldData['doc_count'])];
+    }
+
+    private function getRangeBoundaryValue(string $boundary) : string
+    {
+        if ('*' === $boundary) {
+            return '';
+        }
+
+        return $boundary;
     }
 }

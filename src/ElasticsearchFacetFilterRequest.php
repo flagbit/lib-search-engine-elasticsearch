@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRequestRangedField;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFiltersToIncludeInResult;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRequestField;
 
@@ -62,7 +64,10 @@ class ElasticsearchFacetFilterRequest
             return [];
         }
 
-        return $this->getFacetFields(...$fields);
+        return array_merge(
+            $this->getNonRangedFacetFields(...$fields),
+            $this->getRangedFacetFields(...$fields)
+        );
     }
 
     /**
@@ -81,7 +86,7 @@ class ElasticsearchFacetFilterRequest
      * @param FacetFilterRequestField[] $fields
      * @return string[]
      */
-    private function getFacetFields(FacetFilterRequestField ...$fields) : array
+    private function getNonRangedFacetFields(FacetFilterRequestField ...$fields) : array
     {
         return array_reduce($fields, function (array $carry, FacetFilterRequestField $field) {
             if ($field->isRanged()) {
@@ -97,6 +102,52 @@ class ElasticsearchFacetFilterRequest
         }, []);
     }
 
+    /**
+     * @param FacetFilterRequestField[] $fields
+     * @return string[]
+     */
+    private function getRangedFacetFields(FacetFilterRequestField ...$fields) : array
+    {
+        return array_reduce($fields, function (array $carry, FacetFilterRequestField $field) {
+            if (!$field->isRanged()) {
+                return $carry;
+            }
+
+            return array_merge($carry, [
+                (string)$field->getAttributeCode() => [
+                    'range' => [
+                        'field' => $field->getAttributeCode(),
+                        'ranges' => $this->getRangedFieldRanges($field)
+                    ]
+                ]
+            ]);
+        }, []);
+    }
+
+    /**
+     * @param FacetFilterRequestRangedField $field
+     * @return string[]
+     */
+    private function getRangedFieldRanges(FacetFilterRequestRangedField $field) : array
+    {
+        return array_reduce($field->getRanges(), function (array $carry, FacetFilterRange $range) use ($field) {
+            $from = $range->from();
+            $to = $range->to();
+
+            $facetFieldRange = [];
+
+            if ($from !== null && null === $to) {
+                $facetFieldRange = [['from' => $from]];
+            } elseif (null === $from && $to !== null) {
+                $facetFieldRange = [['to' => $to]];
+            } elseif ($from !== null && $to !== null) {
+                $facetFieldRange = [['from' => $from, 'to' => $to]];
+            }
+            
+            return array_merge($carry, $facetFieldRange);
+        }, []);
+    }
+    
     /**
      * @param array[] $filterSelection
      * @return string[]
@@ -118,10 +169,57 @@ class ElasticsearchFacetFilterRequest
     /**
      * @param string $filterCode
      * @param string[] $filterValues
-     * @return array[]
+     * @return mixed[]
      */
     private function getFormattedFacetQueryValues(string $filterCode, array $filterValues) : array
     {
+        if ($this->facetFieldTransformationRegistry->hasTransformationForCode($filterCode)) {
+            $transformation = $this->facetFieldTransformationRegistry->getTransformationByCode($filterCode);
+
+            return [
+                'bool' => [
+                    'should' => array_map(function (string $filterValue) use ($transformation, $filterCode) {
+                        $facetValue = $transformation->decode($filterValue);
+
+                        if ($facetValue instanceof FacetFilterRange) {
+                            $from = $facetValue->from();
+                            $to = $facetValue->to();
+
+                            $facetQueryRange = [];
+
+                            if ($from !== null && null === $to) {
+                                $facetQueryRange = ['gte' => $from];
+                            } elseif (null === $from && $to !== null) {
+                                $facetQueryRange = ['lte' => $to];
+                            } elseif ($from !== null && $to !== null) {
+                                $facetQueryRange = ['gte' => $from, 'lte' => $to];
+                            }
+
+                            return [
+                                'bool' => [
+                                    'filter' => [
+                                        'range' => [
+                                            $this->escapeQueryChars($filterCode) => $facetQueryRange
+                                        ]
+                                    ]
+                                ]
+                            ];
+                        }
+
+                        return [
+                            'bool' => [
+                                'filter' => [
+                                    'term' => [
+                                        $this->escapeQueryChars($filterCode) => $facetValue
+                                    ]
+                                ]
+                            ]
+                        ];
+                    }, $filterValues)
+                ]
+            ];
+        }
+
         return [
             'bool' => [
                 'should' => array_map(function ($filterValue) use ($filterCode) {
