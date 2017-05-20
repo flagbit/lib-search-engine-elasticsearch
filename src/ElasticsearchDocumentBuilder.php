@@ -57,11 +57,11 @@ class ElasticsearchDocumentBuilder
         if (0 == count($fieldValues)) {
             return "";
         }
-        
+
         if (1 == count($fieldValues) && isset($fieldValues[0]) && !is_array($fieldValues[0])) {
             return (string)$fieldValues[0];
         }
-        
+
         return $fieldValues;
     }
 }

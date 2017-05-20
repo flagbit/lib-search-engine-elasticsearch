@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
-use LizardsAndPumpkins\Context\Context;
-use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortBy;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\CompositeSearchCriterion;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
-use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaOperationException;
-use LizardsAndPumpkins\ProductSearch\QueryOptions;
 use PHPUnit\Framework\TestCase;
+use LizardsAndPumpkins\Context\Context;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\CompositeSearchCriterion;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformation;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaOperationException;
 
 /**
  * @covers \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchQuery
@@ -25,20 +26,20 @@ class ElasticsearchQueryTest extends TestCase
     private $stubCriteria;
 
     /**
-     * @var QueryOptions|\PHPUnit_Framework_MockObject_MockObject
+     * @var Context|\PHPUnit_Framework_MockObject_MockObject
      */
-    private $stubQueryOptions;
+    private $stubContext;
 
     /**
-     * @var ElasticsearchQuery
+     * @var FacetFieldTransformationRegistry|\PHPUnit_Framework_MockObject_MockObject
      */
-    private $elasticsearchQuery;
+    private $stubFacetFieldTransformationRegistry;
 
     protected function setUp()
     {
         $this->stubCriteria = $this->createMock(CompositeSearchCriterion::class);
-        $this->stubQueryOptions = $this->createMock(QueryOptions::class);
-        $this->elasticsearchQuery = new ElasticsearchQuery($this->stubCriteria, $this->stubQueryOptions);
+        $this->stubContext = $this->createMock(Context::class);
+        $this->stubFacetFieldTransformationRegistry = $this->createMock(FacetFieldTransformationRegistry::class);
     }
 
     public function testExceptionIsThrownIfElasticsearchOperationIsUnknown()
@@ -51,10 +52,19 @@ class ElasticsearchQueryTest extends TestCase
             'operation' => 'non-existing-operation'
         ]);
 
-        $this->elasticsearchQuery->toArray();
+        $filters = [];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $elasticsearchQuery->toArray();
     }
 
-    public function testArrayRepresentationOfQueryContainsFormattedQueryString()
+    public function testArrayRepresentationOfQueryContainsJoinedSourceMatchingBools()
     {
         $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([
             'condition' => CompositeSearchCriterion::OR_CONDITION,
@@ -72,16 +82,58 @@ class ElasticsearchQueryTest extends TestCase
             ]
         ]);
 
-        $stubContext = $this->createMock(Context::class);
-        $stubContext->method('getSupportedCodes')->willReturn(['qux']);
-        $stubContext->method('getValue')->willReturnMap([['qux', 2]]);
-        $this->stubQueryOptions->method('getContext')->willReturn($stubContext);
-        
-        $result = $this->elasticsearchQuery->toArray();
+        $this->stubContext->method('getSupportedCodes')->willReturn(['qux']);
+        $this->stubContext->method('getValue')->willReturnMap([['qux', 2]]);
+
+        $rangedAttributeOption1 = '-100';
+        $rangedAttributeOption2 = '200-300';
+        $rangedAttributeOption3 = '400-';
+
+        $filters = [
+            'non_ranged_attribute' => ['option1', 'option2'],
+            'ranged_attribute' => [$rangedAttributeOption1, $rangedAttributeOption2,$rangedAttributeOption3]
+        ];
+
+        $stubFacetFilterRange1 = $this->createMock(FacetFilterRange::class);
+        $stubFacetFilterRange1->method('from')->willReturn(null);
+        $stubFacetFilterRange1->method('to')->willReturn('123');
+
+        $stubFacetFilterRange2 = $this->createMock(FacetFilterRange::class);
+        $stubFacetFilterRange2->method('from')->willReturn('246');
+        $stubFacetFilterRange2->method('to')->willReturn('369');
+
+        $stubFacetFilterRange3 = $this->createMock(FacetFilterRange::class);
+        $stubFacetFilterRange3->method('from')->willReturn('492');
+        $stubFacetFilterRange3->method('to')->willReturn(null);
+
+        $stubFacetFieldTransformation = $this->createMock(FacetFieldTransformation::class);
+        $stubFacetFieldTransformation->method('decode')->willReturnMap([
+            [$rangedAttributeOption1, $stubFacetFilterRange1],
+            [$rangedAttributeOption2, $stubFacetFilterRange2],
+            [$rangedAttributeOption3, $stubFacetFilterRange3],
+        ]);
+
+        $this->stubFacetFieldTransformationRegistry->method('hasTransformationForCode')->willReturnMap([
+            ['non_ranged_attribute', false],
+            ['ranged_attribute', true]
+        ]);
+
+        $this->stubFacetFieldTransformationRegistry->method('getTransformationByCode')
+            ->with('ranged_attribute')
+            ->willReturn($stubFacetFieldTransformation);
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
         $expectedQueryArray = [
             'bool' => [
                 'filter' => [
-                    [
+                    $expectedCriteriaBool = [
                         'bool' => [
                             'should' => [
                                 [
@@ -107,7 +159,7 @@ class ElasticsearchQueryTest extends TestCase
                             ]
                         ]
                     ],
-                    [
+                    $expectedContextBool = [
                         'bool' => [
                             'filter' => [
                                 [
@@ -115,6 +167,92 @@ class ElasticsearchQueryTest extends TestCase
                                         'filter' => [
                                             'term' => [
                                                 'qux' => '2'
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                    $expectedFiltersBool = [
+                        'bool' => [
+                            'filter' => [
+                                $expectedNonRangedAttributeFilterBool = [
+                                    'bool' => [
+                                        'should' => [
+                                            [
+                                                'bool' => [
+                                                    'filter' => [
+                                                        'term' => [
+                                                            'non_ranged_attribute' => 'option1'
+                                                        ]
+                                                    ]
+                                                ]
+                                            ],
+                                            [
+                                                'bool' => [
+                                                    'filter' => [
+                                                        'term' => [
+                                                            'non_ranged_attribute' => 'option2'
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ],
+                                $expectedRangedAttributeFilterBool = [
+                                    'bool' => [
+                                        'should' => [
+                                            [
+                                                'bool' => [
+                                                    'filter' => [
+                                                        'range' => [
+                                                            'ranged_attribute' => [
+                                                                'lte' => '123'
+                                                            ]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ],
+                                            [
+                                                'bool' => [
+                                                    'filter' => [
+                                                        [
+                                                            'bool' => [
+                                                                'filter' => [
+                                                                    'range' => [
+                                                                        'ranged_attribute' => [
+                                                                            'gte' => '246'
+                                                                        ]
+                                                                    ]
+                                                                ]
+                                                            ]
+                                                        ],
+                                                        [
+                                                            'bool' => [
+                                                                'filter' => [
+                                                                    'range' => [
+                                                                        'ranged_attribute' => [
+                                                                            'lte' => '369'
+                                                                        ]
+                                                                    ]
+                                                                ]
+                                                            ]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ],
+                                            [
+                                                'bool' => [
+                                                    'filter' => [
+                                                        'range' => [
+                                                            'ranged_attribute' => [
+                                                                'gte' => '492'
+                                                            ]
+                                                        ]
+                                                    ]
+                                                ]
                                             ]
                                         ]
                                     ]
@@ -138,15 +276,17 @@ class ElasticsearchQueryTest extends TestCase
             'operation' => 'Equal'
         ]);
 
-        $stubContext = $this->createMock(Context::class);
-        $stubContext->method('getSupportedCodes')->willReturn([]);
-        $this->stubQueryOptions->method('getContext')->willReturn($stubContext);
+        $filters = [];
 
-        $stubSortOrderConfig = $this->createMock(SortBy::class);
-        $this->stubQueryOptions->method('getSortBy')->willReturn($stubSortOrderConfig);
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
 
-        $resultA = $this->elasticsearchQuery->toArray();
-        $resultB = $this->elasticsearchQuery->toArray();
+        $resultA = $elasticsearchQuery->toArray();
+        $resultB = $elasticsearchQuery->toArray();
 
         $this->assertSame($resultA, $resultB);
     }

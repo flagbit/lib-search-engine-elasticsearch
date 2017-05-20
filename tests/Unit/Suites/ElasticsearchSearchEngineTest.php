@@ -4,23 +4,23 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
+use stdClass;
+use PHPUnit\Framework\TestCase;
 use LizardsAndPumpkins\Context\Context;
-use LizardsAndPumpkins\Context\SelfContainedContext;
-use LizardsAndPumpkins\Context\SelfContainedContextBuilder;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFiltersToIncludeInResult;
-use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortBy;
-use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortDirection;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriterionEqual;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocument;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocumentFieldCollection;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchEngineResponse;
-use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Http\ElasticsearchHttpClient;
-use LizardsAndPumpkins\Import\Product\AttributeCode;
 use LizardsAndPumpkins\Import\Product\ProductId;
 use LizardsAndPumpkins\ProductSearch\QueryOptions;
-use PHPUnit\Framework\TestCase;
-use stdClass;
+use LizardsAndPumpkins\Import\Product\AttributeCode;
+use LizardsAndPumpkins\Context\SelfContainedContext;
+use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortBy;
+use LizardsAndPumpkins\Context\SelfContainedContextBuilder;
+use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortDirection;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchEngineResponse;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFiltersToIncludeInResult;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocument;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriterionEqual;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Http\ElasticsearchHttpClient;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocumentFieldCollection;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 
 /**
  * @covers \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchSearchEngine
@@ -114,7 +114,11 @@ class ElasticsearchSearchEngineTest extends TestCase
 
     public function testUpdateRequestFlushingElasticsearchIndexIsSentToHttpClient()
     {
-        $this->mockHttpClient->expects($this->once())->method('clear')->with(['query' => ['match_all' => new stdClass()]]);
+        $this->mockHttpClient
+            ->expects($this->once())
+            ->method('clear')
+            ->with(['query' => ['match_all' => new stdClass()]]);
+        
         $this->searchEngine->clear();
     }
 
@@ -124,7 +128,7 @@ class ElasticsearchSearchEngineTest extends TestCase
 
         $searchCriteria = new SearchCriterionEqual('foo', 'bar');
         $filterSelection = [];
-        
+
         $result = $this->searchEngine->query($searchCriteria, $this->createStubQueryOptions($filterSelection));
 
         $this->assertInstanceOf(SearchEngineResponse::class, $result);

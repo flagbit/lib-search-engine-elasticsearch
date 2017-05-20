@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
+use PHPUnit\Framework\TestCase;
+use LizardsAndPumpkins\Import\Product\ProductId;
+use LizardsAndPumpkins\Import\Product\AttributeCode;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetField;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldValue;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\ElasticsearchException;
-use LizardsAndPumpkins\Import\Product\AttributeCode;
-use LizardsAndPumpkins\Import\Product\ProductId;
-use PHPUnit\Framework\TestCase;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 
 /**
  * @covers \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchResponse
@@ -88,7 +88,7 @@ class ElasticsearchResponseTest extends TestCase
         $this->assertSame([], $response->getNonSelectedFacetFields($selectedFilterAttributeCodes));
     }
 
-    public function testFacetFiltersAreReturned()
+    public function testAggregationForNonRangedFacetFieldIsReturned()
     {
         $attributeCodeString = 'foo';
         $attributeValue = 'bar';

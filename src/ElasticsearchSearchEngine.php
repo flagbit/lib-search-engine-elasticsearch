@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
+use stdClass;
+use LizardsAndPumpkins\Util\Storage\Clearable;
+use LizardsAndPumpkins\ProductSearch\QueryOptions;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetField;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldCollection;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
-use LizardsAndPumpkins\DataPool\SearchEngine\FacetFiltersToIncludeInResult;
 use LizardsAndPumpkins\DataPool\SearchEngine\Query\SortBy;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
-use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocument;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchEngine;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchEngineResponse;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldCollection;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFiltersToIncludeInResult;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
+use LizardsAndPumpkins\DataPool\SearchEngine\SearchDocument\SearchDocument;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Http\ElasticsearchHttpClient;
-use LizardsAndPumpkins\ProductSearch\QueryOptions;
-use LizardsAndPumpkins\Util\Storage\Clearable;
-use stdClass;
+use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 
 class ElasticsearchSearchEngine implements SearchEngine, Clearable
 {
@@ -55,23 +55,27 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     public function query(SearchCriteria $criteria, QueryOptions $queryOptions) : SearchEngineResponse
     {
-        $query =  new ElasticsearchQuery($criteria, $queryOptions);
+        $filterSelection = $queryOptions->getFilterSelection();
+        $query = new ElasticsearchQuery(
+            $criteria,
+            $queryOptions->getContext(),
+            $this->facetFieldTransformationRegistry,
+            $filterSelection
+        );
 
         $facetFiltersToIncludeInResult = $queryOptions->getFacetFiltersToIncludeInResult();
-        $filterSelection = $queryOptions->getFilterSelection();
-
-        $facetFilterRequest = new ElasticsearchFacetFilterRequest(
+        $aggregationsRequest = new ElasticsearchAggregationsRequest(
             $facetFiltersToIncludeInResult,
-            $filterSelection,
             $this->facetFieldTransformationRegistry
         );
-        $response = $this->queryElasticsearch($query, $queryOptions, $facetFilterRequest);
+
+        $response = $this->queryElasticsearch($query, $aggregationsRequest, $queryOptions);
 
         $totalNumberOfResults = $response->getTotalNumberOfResults();
         $matchingProductIds = $response->getMatchingProductIds();
         $facetFieldsCollection = $this->getFacetFieldCollectionFromElasticsearchResponse(
             $response,
-            $query,
+            $criteria,
             $queryOptions,
             $filterSelection,
             $facetFiltersToIncludeInResult
@@ -88,14 +92,14 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     /**
      * @param ElasticsearchResponse $response
-     * @param ElasticsearchQuery $query
+     * @param SearchCriteria $criteria
      * @param array[] $filterSelection
      * @param FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
      * @return FacetFieldCollection
      */
     private function getFacetFieldCollectionFromElasticsearchResponse(
         ElasticsearchResponse $response,
-        ElasticsearchQuery $query,
+        SearchCriteria $criteria,
         QueryOptions $queryOptions,
         array $filterSelection,
         FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
@@ -104,7 +108,7 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         $nonSelectedFacetFields = $response->getNonSelectedFacetFields($selectedFilterAttributeCodes);
         $selectedFacetFields = $this->getSelectedFacetFields(
             $filterSelection,
-            $query,
+            $criteria,
             $queryOptions,
             $facetFiltersToIncludeInResult
         );
@@ -114,13 +118,13 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     /**
      * @param array[] $filterSelection
-     * @param ElasticsearchQuery $query
+     * @param SearchCriteria $criteria
      * @param FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
      * @return FacetField[]
      */
     private function getSelectedFacetFields(
         array $filterSelection,
-        ElasticsearchQuery $query,
+        SearchCriteria $criteria,
         QueryOptions $queryOptions,
         FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
     ) : array {
@@ -129,12 +133,18 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
         foreach ($selectedAttributeCodes as $attributeCodeString) {
             $selectedFiltersExceptCurrentOne = array_diff_key($filterSelection, [$attributeCodeString => []]);
-            $facetFilterRequest = new ElasticsearchFacetFilterRequest(
+            $query = new ElasticsearchQuery(
+                $criteria,
+                $queryOptions->getContext(),
+                $this->facetFieldTransformationRegistry,
+                $selectedFiltersExceptCurrentOne
+            );
+
+            $aggregationsRequest = new ElasticsearchAggregationsRequest(
                 $facetFiltersToIncludeInResult,
-                $selectedFiltersExceptCurrentOne,
                 $this->facetFieldTransformationRegistry
             );
-            $response = $this->queryElasticsearch($query, $queryOptions, $facetFilterRequest);
+            $response = $this->queryElasticsearch($query, $aggregationsRequest, $queryOptions);
             $facetFieldsSiblings = $response->getNonSelectedFacetFields(array_keys($selectedFiltersExceptCurrentOne));
             $facetFields = array_merge($facetFields, $facetFieldsSiblings);
         }
@@ -144,32 +154,25 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     private function queryElasticsearch(
         ElasticsearchQuery $query,
-        QueryOptions $queryOptions,
-        ElasticsearchFacetFilterRequest $facetFilterRequest
+        ElasticsearchAggregationsRequest $aggregationsRequest,
+        QueryOptions $queryOptions
     ) : ElasticsearchResponse {
-        $queryParameters = $query->toArray();
-        $facetQueryParameters = $facetFilterRequest->toArray();
+        $query = $query->toArray();
+        $aggregations = $aggregationsRequest->toArray();
 
         $rowsPerPage = $queryOptions->getRowsPerPage();
         $offset = $queryOptions->getPageNumber() * $rowsPerPage;
         $sortOrderArray = $this->getSortOrderArray($queryOptions->getSortBy());
 
-        $finalQuery = [
-            'query' => [
-                'bool' => [
-                    'filter' => array_merge(
-                        [$queryParameters],
-                        array_values($facetQueryParameters['facetQueriesRequestParameters'])
-                    )
-                ]
-            ],
-            'aggs' => $facetQueryParameters['facetRequestParameters'],
+        $request = [
+            'query' => $query,
+            'aggregations' => $aggregations,
             'size' => $rowsPerPage,
             'from' => $offset,
             'sort' => $sortOrderArray
         ];
 
-        $response = $this->client->select($finalQuery);
+        $response = $this->client->select($request);
 
         return ElasticsearchResponse::fromElasticsearchResponseArray(
             $response,

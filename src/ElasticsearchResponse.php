@@ -15,7 +15,6 @@ use LizardsAndPumpkins\Import\Product\ProductId;
 
 class ElasticsearchResponse
 {
-    const BUCKETS_CONTENTS_KEY = 'buckets';
     /**
      * @var array[]
      */
@@ -75,20 +74,20 @@ class ElasticsearchResponse
      */
     public function getNonSelectedFacetFields(array $selectedFilterAttributeCodes) : array
     {
-        return $this->getNonSelectedFacetFieldsFromElasticsearchFacetFields($selectedFilterAttributeCodes);
+        return $this->getNonSelectedFacetFieldsFromElasticsearchAggregations($selectedFilterAttributeCodes);
     }
 
     /**
      * @param string[] $selectedFilterAttributeCodes
      * @return FacetField[]
      */
-    private function getNonSelectedFacetFieldsFromElasticsearchFacetFields(array $selectedFilterAttributeCodes) : array
+    private function getNonSelectedFacetFieldsFromElasticsearchAggregations(array $selectedFilterAttributeCodes) : array
     {
         $facetFieldsArray = $this->getFacetFields();
         $unselectedAttributeCodes = array_diff(array_keys($facetFieldsArray), $selectedFilterAttributeCodes);
 
         return array_map(function ($attributeCodeString) use ($facetFieldsArray) {
-            $facetFieldValues = $facetFieldsArray[$attributeCodeString][self::BUCKETS_CONTENTS_KEY];
+            $facetFieldValues = $facetFieldsArray[$attributeCodeString]['buckets'];
             return $this->createFacetField($attributeCodeString, $facetFieldValues);
         }, $unselectedAttributeCodes);
     }

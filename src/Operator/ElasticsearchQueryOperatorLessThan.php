@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator;
 
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolFilter;
+
 class ElasticsearchQueryOperatorLessThan implements ElasticsearchQueryOperator
 {
     public function getFormattedArray(string $fieldName, string $fieldValue) : array
     {
-        return [
-            'bool' => [
-                'filter' => [
-                    'range' => [
-                        $fieldName => ['lt' => $fieldValue]
-                    ]
-                ]
+        return (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+            'range' => [
+                $fieldName => ['lt' => $fieldValue]
             ]
-        ];
+        ]);
     }
 }
