@@ -25,7 +25,6 @@ use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetField
 /**
  * @covers \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchSearchEngine
  * @uses   \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchDocumentBuilder
- * @uses   \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchFacetFilterRequest
  * @uses   \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchQuery
  * @uses   \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchResponse
  */
