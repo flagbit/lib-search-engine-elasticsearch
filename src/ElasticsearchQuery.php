@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
 use LizardsAndPumpkins\Context\Context;
-use LizardsAndPumpkins\ProductSearch\QueryOptions;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolFilter;
