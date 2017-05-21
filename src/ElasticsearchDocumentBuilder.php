@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
@@ -15,7 +15,7 @@ class ElasticsearchDocumentBuilder
      * @param SearchDocument $document
      * @return string[]
      */
-    public static function fromSearchDocument(SearchDocument $document) : array
+    public static function fromSearchDocument(SearchDocument $document): array
     {
         $context = $document->getContext();
 
@@ -33,7 +33,7 @@ class ElasticsearchDocumentBuilder
      * @param SearchDocumentFieldCollection $fieldCollection
      * @return array[]
      */
-    private static function getSearchDocumentFields(SearchDocumentFieldCollection $fieldCollection) : array
+    private static function getSearchDocumentFields(SearchDocumentFieldCollection $fieldCollection): array
     {
         return array_reduce($fieldCollection->getFields(), function ($carry, SearchDocumentField $field) {
             $fieldValues = self::collapseFieldValues($field->getValues());
@@ -45,21 +45,25 @@ class ElasticsearchDocumentBuilder
      * @param Context $context
      * @return string[]
      */
-    private static function getContextFields(Context $context) : array
+    private static function getContextFields(Context $context): array
     {
         return array_reduce($context->getSupportedCodes(), function ($carry, $contextCode) use ($context) {
             return array_merge([$contextCode => $context->getValue($contextCode)], $carry);
         }, []);
     }
 
-    private static function collapseFieldValues($fieldValues)
+    /**
+     * @param string[] $fieldValues
+     * @return string|string[]
+     */
+    private static function collapseFieldValues(array $fieldValues)
     {
         if (0 == count($fieldValues)) {
-            return "";
+            return '';
         }
 
-        if (1 == count($fieldValues) && isset($fieldValues[0]) && !is_array($fieldValues[0])) {
-            return (string)$fieldValues[0];
+        if (1 == count($fieldValues) && isset($fieldValues[0]) && ! is_array($fieldValues[0])) {
+            return (string) $fieldValues[0];
         }
 
         return $fieldValues;
