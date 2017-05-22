@@ -15,13 +15,11 @@ use PHPUnit\Framework\TestCase;
  */
 class ElasticsearchDocumentBuilderTest extends TestCase
 {
-    public function testSearchDocumentIsConvertedIntoElasticsearchFormat()
+    public function testSearchDocumentWithoutFieldValuesIsConvertedIntoElasticsearchFormat()
     {
         $documentFieldName = 'foo';
-        $documentFieldValue = 'bar';
-        $searchDocumentFieldCollection = SearchDocumentFieldCollection::fromArray(
-            [$documentFieldName => $documentFieldValue]
-        );
+
+        $searchDocumentFieldCollection = SearchDocumentFieldCollection::fromArray([$documentFieldName => []]);
 
         $contextPartName = 'baz';
         $contextPartValue = 'qux';
@@ -35,10 +33,51 @@ class ElasticsearchDocumentBuilderTest extends TestCase
         $expectedElasticsearchDocument = [
             ElasticsearchSearchEngine::DOCUMENT_ID_FIELD_NAME => $documentUniqueId,
             ElasticsearchSearchEngine::PRODUCT_ID_FIELD_NAME  => (string) $productId,
-            $documentFieldName => $documentFieldValue,
+            $documentFieldName => '',
             $contextPartName => $contextPartValue,
         ];
 
-        $this->assertSame($expectedElasticsearchDocument, ElasticsearchDocumentBuilder::fromSearchDocument($searchDocument));
+        $result = ElasticsearchDocumentBuilder::fromSearchDocument($searchDocument);
+
+        $this->assertSame($expectedElasticsearchDocument, $result);
+    }
+
+    /**
+     * @dataProvider searchDocumentFieldsProvider
+     * @param mixed[] $searchDocumentFields
+     */
+    public function testSearchDocumentIsConvertedIntoElasticsearchFormat(array $searchDocumentFields)
+    {
+        $searchDocumentFieldCollection = SearchDocumentFieldCollection::fromArray($searchDocumentFields);
+
+        $contextPartName = 'baz';
+        $contextPartValue = 'qux';
+        $context = new SelfContainedContext([$contextPartName => $contextPartValue]);
+
+        $productId = new ProductId(uniqid());
+
+        $searchDocument = new SearchDocument($searchDocumentFieldCollection, $context, $productId);
+
+        $documentUniqueId = sprintf('%s_%s:%s', (string) $productId, $contextPartName, $contextPartValue);
+        $expectedElasticsearchDocument = array_merge(
+            [
+                ElasticsearchSearchEngine::DOCUMENT_ID_FIELD_NAME => $documentUniqueId,
+                ElasticsearchSearchEngine::PRODUCT_ID_FIELD_NAME => (string) $productId,
+            ],
+            $searchDocumentFields,
+            [$contextPartName => $contextPartValue]
+        );
+
+        $result = ElasticsearchDocumentBuilder::fromSearchDocument($searchDocument);
+
+        $this->assertSame($expectedElasticsearchDocument, $result);
+    }
+
+    public function searchDocumentFieldsProvider(): array
+    {
+        return [
+            [[$documentFieldName = 'foo' => $documentFieldValue = 'bar']],
+            [[$documentFieldName = 'foo' => $documentFieldValue = ['bar', 'some other bar']]],
+        ];
     }
 }
