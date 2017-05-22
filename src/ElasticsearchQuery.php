@@ -207,11 +207,11 @@ class ElasticsearchQuery
             return $carry;
         }, []);
 
-        if(0 === count($innerBools)) {
+        if (0 === count($innerBools)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
-        } else {
-            return $this->getBoolFilterArrayRepresentation($innerBools);
         }
+
+        return $this->getBoolFilterArrayRepresentation($innerBools);
     }
 
     /**
