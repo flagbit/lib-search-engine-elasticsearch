@@ -296,4 +296,31 @@ class ElasticsearchQueryTest extends TestCase
         
         $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][0]));
     }
+
+    public function testFiltersSourceContainsOneAttributeWithNoSelectedValuesTranslatesToAnythingOperator()
+    {
+        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
+        $this->stubContext->method('getSupportedCodes')->willReturn([]);
+        $filters = [
+            'attribute' => []
+        ];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
+        $expectedBoolJson = json_encode(
+            (new ElasticsearchQueryOperatorAnything())->getFormattedArray()
+        );
+
+        $this->assertArrayHasKey('bool', $result);
+        $this->assertArrayHasKey('filter', $result['bool']);
+        $this->assertArrayHasKey(2, $result['bool']['filter']);
+
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][2]));
+    }
 }
