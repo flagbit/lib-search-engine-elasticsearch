@@ -4,14 +4,23 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaConditionException;
+use stdClass;
 use PHPUnit\Framework\TestCase;
 use LizardsAndPumpkins\Context\Context;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\CompositeSearchCriterion;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolFilter;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolShould;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformation;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorEqual;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorAnything;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorLessOrEqualThan;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorGreaterOrEqualThan;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaOperationException;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\InvalidSearchCriteriaOperationFormatException;
 
 /**
  * @covers \LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchQuery
@@ -50,6 +59,57 @@ class ElasticsearchQueryTest extends TestCase
             'fieldName' => 'foo',
             'fieldValue' => 'bar',
             'operation' => 'non-existing-operation'
+        ]);
+
+        $filters = [];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $elasticsearchQuery->toArray();
+    }
+    
+    public function testExceptionIsThrownIfElasticsearchConditionIsUnknown()
+    {
+        $this->expectException(UnsupportedSearchCriteriaConditionException::class);
+
+        $this->stubCriteria->method('jsonSerialize')->willReturn([
+            'condition' => 'non-existing-condition',
+            'criteria' => [
+                [
+                    'operation' => 'Equal',
+                    'fieldName' => 'foo',
+                    'fieldValue' => 'bar',
+                ]
+            ]
+        ]);
+
+        $filters = [];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $elasticsearchQuery->toArray();
+    }
+    
+    
+    
+    public function testExceptionIsThrownIfSearchCriteriaOperationFormatInvalid()
+    {
+        $this->expectException(InvalidSearchCriteriaOperationFormatException::class);
+
+        $this->stubCriteria->method('jsonSerialize')->willReturn([
+            'invalid-fieldName-key' => '',
+            'invalid-fieldValue-key' => '',
+            'invalid-operation-key' => ''
         ]);
 
         $filters = [];
@@ -130,139 +190,31 @@ class ElasticsearchQueryTest extends TestCase
         );
 
         $result = $elasticsearchQuery->toArray();
-        $expectedQueryArray = [
-            'bool' => [
-                'filter' => [
-                    $expectedCriteriaBool = [
-                        'bool' => [
-                            'should' => [
-                                [
-                                    'bool' => [
-                                        'filter' => [
-                                            'term' => [
-                                                'foo' => 'bar'
-                                            ]
-                                        ]
-                                    ]
-                                ],
-                                [
-                                    'bool' => [
-                                        'filter' => [
-                                            'range' => [
-                                                'baz' => [
-                                                    'gte' => '1'
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                    $expectedContextBool = [
-                        'bool' => [
-                            'filter' => [
-                                [
-                                    'bool' => [
-                                        'filter' => [
-                                            'term' => [
-                                                'qux' => '2'
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                    $expectedFiltersBool = [
-                        'bool' => [
-                            'filter' => [
-                                $expectedNonRangedAttributeFilterBool = [
-                                    'bool' => [
-                                        'should' => [
-                                            [
-                                                'bool' => [
-                                                    'filter' => [
-                                                        'term' => [
-                                                            'non_ranged_attribute' => 'option1'
-                                                        ]
-                                                    ]
-                                                ]
-                                            ],
-                                            [
-                                                'bool' => [
-                                                    'filter' => [
-                                                        'term' => [
-                                                            'non_ranged_attribute' => 'option2'
-                                                        ]
-                                                    ]
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ],
-                                $expectedRangedAttributeFilterBool = [
-                                    'bool' => [
-                                        'should' => [
-                                            [
-                                                'bool' => [
-                                                    'filter' => [
-                                                        'range' => [
-                                                            'ranged_attribute' => [
-                                                                'lte' => '123'
-                                                            ]
-                                                        ]
-                                                    ]
-                                                ]
-                                            ],
-                                            [
-                                                'bool' => [
-                                                    'filter' => [
-                                                        [
-                                                            'bool' => [
-                                                                'filter' => [
-                                                                    'range' => [
-                                                                        'ranged_attribute' => [
-                                                                            'gte' => '246'
-                                                                        ]
-                                                                    ]
-                                                                ]
-                                                            ]
-                                                        ],
-                                                        [
-                                                            'bool' => [
-                                                                'filter' => [
-                                                                    'range' => [
-                                                                        'ranged_attribute' => [
-                                                                            'lte' => '369'
-                                                                        ]
-                                                                    ]
-                                                                ]
-                                                            ]
-                                                        ]
-                                                    ]
-                                                ]
-                                            ],
-                                            [
-                                                'bool' => [
-                                                    'filter' => [
-                                                        'range' => [
-                                                            'ranged_attribute' => [
-                                                                'gte' => '492'
-                                                            ]
-                                                        ]
-                                                    ]
-                                                ]
-                                            ]
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ];
+        $expectedQueryArray = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+            $expectedCriteriaBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray(
+                (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                    (new ElasticsearchQueryOperatorEqual())->getFormattedArray('foo', 'bar'),
+                    (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('baz', '1')
+                ])
+            ),
+            $expectedContextBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+                (new ElasticsearchQueryOperatorEqual())->getFormattedArray('qux', '2')
+            ]),
+            $expectedFiltersBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+                $expectedNonRangedAttributeFilterBool = (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                    (new ElasticsearchQueryOperatorEqual())->getFormattedArray('non_ranged_attribute', 'option1'),
+                    (new ElasticsearchQueryOperatorEqual())->getFormattedArray('non_ranged_attribute', 'option2')
+                ]),
+                $expectedRangedAttributeFilterBool = (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                    (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray('ranged_attribute', '123'),
+                    (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+                        (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('ranged_attribute', '246'),
+                        (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray('ranged_attribute', '369'),
+                    ]),
+                    (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('ranged_attribute', '492')
+                ])
+            ])
+        ]);
 
         $this->assertArrayHasKey('bool', $result);
         $this->assertSame($expectedQueryArray, $result);
@@ -289,5 +241,88 @@ class ElasticsearchQueryTest extends TestCase
         $resultB = $elasticsearchQuery->toArray();
 
         $this->assertSame($resultA, $resultB);
+    }
+
+    public function testJsonEncodedArrayRepresentationOfElasticsearchQueryContainsAnythingOperatorForEachEmptySource()
+    {
+        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
+        $this->stubContext->method('getSupportedCodes')->willReturn([]);
+        $filters = [];
+        
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
+        $expectedQueryJson = json_encode(
+            (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+                (new ElasticsearchQueryOperatorAnything())->getFormattedArray(),
+                (new ElasticsearchQueryOperatorAnything())->getFormattedArray(),
+                (new ElasticsearchQueryOperatorAnything())->getFormattedArray()
+            ])
+        );
+        
+        $this->assertSame($expectedQueryJson, json_encode($result));
+    }
+
+    public function testEmptySourcesTranslateToToMatchingTopLevelAnythingOperators()
+    {
+        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
+        $this->stubContext->method('getSupportedCodes')->willReturn([]);
+        $filters = [];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
+        $expectedBoolJson = json_encode((new ElasticsearchQueryOperatorAnything())->getFormattedArray());
+
+        $this->assertArrayHasKey('bool', $result);
+        $this->assertArrayHasKey('filter', $result['bool']);
+        $this->assertArrayHasKey(0, $result['bool']['filter']);
+        $this->assertArrayHasKey(1, $result['bool']['filter']);
+        $this->assertArrayHasKey(2, $result['bool']['filter']);
+        
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][0]));
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][1]));
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][2]));
+    }
+    
+    public function testInvalidSubCriteriaTranslatesToAnythingOperator()
+    {
+        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([
+            'condition' => CompositeSearchCriterion::OR_CONDITION,
+            'criteria' => 'sub-criteria-key-exists-but-is-not-an-expected-non-empty-array'
+        ]);
+
+        $this->stubContext->method('getSupportedCodes')->willReturn([]);
+        $filters = [];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
+        $expectedBoolJson = json_encode(
+            (new ElasticsearchQueryBoolFilter())->getFormattedArray(
+                (new ElasticsearchQueryOperatorAnything())->getFormattedArray()
+            )
+        );
+        
+        $this->assertArrayHasKey('bool', $result);
+        $this->assertArrayHasKey('filter', $result['bool']);
+        $this->assertArrayHasKey(0, $result['bool']['filter']);
+        
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][0]));
     }
 }

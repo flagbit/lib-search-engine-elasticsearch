@@ -12,10 +12,13 @@ use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQue
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolShould;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperator;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorEqual;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorAnything;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetFieldTransformationRegistry;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorLessOrEqualThan;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorGreaterOrEqualThan;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaConditionException;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaOperationException;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\InvalidSearchCriteriaOperationFormatException;
 
 class ElasticsearchQuery
 {
@@ -63,7 +66,7 @@ class ElasticsearchQuery
         if (null === $this->memoizedElasticsearchQueryArrayRepresentation) {
             $this->memoizedElasticsearchQueryArrayRepresentation = $this->getElasticsearchQueryArrayRepresentation();
         }
-
+        
         return $this->memoizedElasticsearchQueryArrayRepresentation;
     }
 
@@ -85,8 +88,14 @@ class ElasticsearchQuery
     {
         $criteriaJson = json_encode($criteria);
         $criteriaArray = json_decode($criteriaJson, true);
+        
+        if (0 === count($criteriaArray)) {
+            return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
+        }
 
-        return $this->createElasticsearchQueryBoolArrayFromCriteriaArray($criteriaArray);
+        return $this->getBoolFilterArrayRepresentation(
+            $this->createElasticsearchQueryBoolArrayFromCriteriaArray($criteriaArray)
+        );
     }
 
     /**
@@ -96,8 +105,19 @@ class ElasticsearchQuery
     private function createElasticsearchQueryBoolArrayFromCriteriaArray(array $criteria) : array
     {
         if (isset($criteria['condition'])) {
-            $subBools = array_map([$this, 'createElasticsearchQueryBoolArrayFromCriteriaArray'], $criteria['criteria']);
-            return $this->packElasticsearchSubBools($criteria['condition'], $subBools);
+            if (!isset($criteria['criteria'])
+                || !is_array($criteria['criteria'])
+                || 0 === count($criteria['criteria'])
+            ) {
+                return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
+            }
+
+            $subBools = array_map(
+                [$this, 'createElasticsearchQueryBoolArrayFromCriteriaArray'],
+                $criteria['criteria']
+            );
+
+            return $this->packSubCriteriaIntoElasticsearchSubBools($criteria['condition'], $subBools);
         }
 
         return $this->createPrimitiveOperator($criteria);
@@ -108,19 +128,17 @@ class ElasticsearchQuery
      * @param mixed[] $subBools
      * @return mixed[]
      */
-    private function packElasticsearchSubBools(string $condition, array $subBools)
+    private function packSubCriteriaIntoElasticsearchSubBools(string $condition, array $subBools)
     {
         if ('and' === $condition) {
-            return $this->getBoolFilterArrayRepresentation(
-                array_values($subBools)
-            );
+            return $this->getBoolFilterArrayRepresentation($subBools);
         } elseif ('or' === $condition) {
-            return $this->getBoolShouldArrayRepresentation(
-                array_values($subBools)
+            return $this->getBoolShouldArrayRepresentation($subBools);
+        } else {
+            throw new UnsupportedSearchCriteriaConditionException(
+                sprintf('Unsupported criteria condition "%s".', $condition)
             );
         }
-
-        return [];
     }
 
     /**
@@ -129,6 +147,12 @@ class ElasticsearchQuery
      */
     private function createPrimitiveOperator(array $criteria) : array
     {
+        if (!isset($criteria['fieldName'], $criteria['fieldValue'], $criteria['operation'])) {
+            throw new InvalidSearchCriteriaOperationFormatException(
+                sprintf('Invalid search criteria operation format')
+            );
+        }
+        
         $operator = $this->getElasticsearchOperator($criteria['operation']);
         return $operator->getFormattedArray((string)$criteria['fieldName'], (string)$criteria['fieldValue']);
     }
@@ -152,6 +176,12 @@ class ElasticsearchQuery
      */
     private function convertContextIntoElasticsearchBool(Context $context) : array
     {
+        $supportedCodes = $context->getSupportedCodes();
+        
+        if (0 === count($supportedCodes)) {
+            return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
+        }
+        
         return $this->getBoolFilterArrayRepresentation(
             array_map(function ($contextCode) use ($context) {
                 $fieldName = (string)$contextCode;
@@ -159,7 +189,7 @@ class ElasticsearchQuery
                 $operator = $this->getElasticsearchOperator('Equal');
 
                 return $operator->getFormattedArray($fieldName, $fieldValue);
-            }, $context->getSupportedCodes())
+            }, $supportedCodes)
         );
     }
 
@@ -170,9 +200,9 @@ class ElasticsearchQuery
     private function convertFiltersIntoElasticsearchBools($filters): array
     {
         if (count($filters) === 0) {
-            return [];
+            return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
-
+        
         return $this->getBoolFilterArrayRepresentation(
             array_reduce(array_keys($filters), function (array $carry, $filterCode) use ($filters) {
                 if (count($filters[$filterCode]) > 0) {
