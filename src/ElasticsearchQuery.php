@@ -198,20 +198,20 @@ class ElasticsearchQuery
      */
     private function convertFiltersIntoElasticsearchBools($filters): array
     {
-        if (count($filters) === 0) {
+        $innerBools = array_reduce(array_keys($filters), function (array $carry, $filterCode) use ($filters) {
+            if (count($filters[$filterCode]) > 0) {
+                $carry[] = $this->getBoolShouldArrayRepresentation(
+                    $this->getElasticsearchBoolsFromFilterValues($filterCode, $filters[$filterCode])
+                );
+            }
+            return $carry;
+        }, []);
+
+        if(0 === count($innerBools)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
+        } else {
+            return $this->getBoolFilterArrayRepresentation($innerBools);
         }
-        
-        return $this->getBoolFilterArrayRepresentation(
-            array_reduce(array_keys($filters), function (array $carry, $filterCode) use ($filters) {
-                if (count($filters[$filterCode]) > 0) {
-                    $carry[] = $this->getBoolShouldArrayRepresentation(
-                        $this->getElasticsearchBoolsFromFilterValues($filterCode, $filters[$filterCode])
-                    );
-                }
-                return $carry;
-            }, [])
-        );
     }
 
     /**
