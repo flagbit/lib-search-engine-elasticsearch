@@ -157,20 +157,26 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         ElasticsearchAggregationsRequest $aggregationsRequest,
         QueryOptions $queryOptions
     ) : ElasticsearchResponse {
+        $request = [];
+        
         $query = $query->toArray();
+        if (count($query) !== 0) {
+            $request['query'] = $query;
+        }
+        
         $aggregations = $aggregationsRequest->toArray();
+        if (count($aggregations) !== 0) {
+            $request['aggregations'] = $aggregations;
+        }
 
         $rowsPerPage = $queryOptions->getRowsPerPage();
+        $request['size'] = $rowsPerPage;
+        
         $offset = $queryOptions->getPageNumber() * $rowsPerPage;
+        $request['from'] = $offset;
+        
         $sortOrderArray = $this->getSortOrderArray($queryOptions->getSortBy());
-
-        $request = [
-            'query' => $query,
-            'aggregations' => $aggregations,
-            'size' => $rowsPerPage,
-            'from' => $offset,
-            'sort' => $sortOrderArray
-        ];
+        $request['sort'] = $sortOrderArray;
 
         $response = $this->client->select($request);
 
