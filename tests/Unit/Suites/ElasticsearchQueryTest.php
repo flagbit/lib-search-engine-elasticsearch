@@ -146,10 +146,16 @@ class ElasticsearchQueryTest extends TestCase
         $rangedAttributeOption1 = '-100';
         $rangedAttributeOption2 = '200-300';
         $rangedAttributeOption3 = '400-';
+        $rangedAttributeOption4 = '-';
 
         $filters = [
             'non_ranged_attribute' => ['option1', 'option2'],
-            'ranged_attribute' => [$rangedAttributeOption1, $rangedAttributeOption2,$rangedAttributeOption3]
+            'ranged_attribute' => [
+                $rangedAttributeOption1,
+                $rangedAttributeOption2,
+                $rangedAttributeOption3,
+                $rangedAttributeOption4
+            ]
         ];
 
         $stubFacetFilterRange1 = $this->createMock(FacetFilterRange::class);
@@ -163,12 +169,17 @@ class ElasticsearchQueryTest extends TestCase
         $stubFacetFilterRange3 = $this->createMock(FacetFilterRange::class);
         $stubFacetFilterRange3->method('from')->willReturn('492');
         $stubFacetFilterRange3->method('to')->willReturn(null);
-
+        
+        $stubFacetFilterRange4 = $this->createMock(FacetFilterRange::class);
+        $stubFacetFilterRange4->method('from')->willReturn(null);
+        $stubFacetFilterRange4->method('to')->willReturn(null);
+        
         $stubFacetFieldTransformation = $this->createMock(FacetFieldTransformation::class);
         $stubFacetFieldTransformation->method('decode')->willReturnMap([
             [$rangedAttributeOption1, $stubFacetFilterRange1],
             [$rangedAttributeOption2, $stubFacetFilterRange2],
             [$rangedAttributeOption3, $stubFacetFilterRange3],
+            [$rangedAttributeOption4, $stubFacetFilterRange4]
         ]);
 
         $this->stubFacetFieldTransformationRegistry->method('hasTransformationForCode')->willReturnMap([
@@ -209,13 +220,14 @@ class ElasticsearchQueryTest extends TestCase
                         (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('ranged_attribute', '246'),
                         (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray('ranged_attribute', '369'),
                     ]),
-                    (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('ranged_attribute', '492')
+                    (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray('ranged_attribute', '492'),
+                    (new ElasticsearchQueryOperatorAnything())->getFormattedArray()
                 ])
             ])
         ]);
 
         $this->assertArrayHasKey('bool', $result);
-        $this->assertSame($expectedQueryArray, $result);
+        $this->assertSame(json_encode($expectedQueryArray), json_encode($result));
     }
 
     public function testArrayRepresentationOfElasticsearchQueryIsMemoized()
