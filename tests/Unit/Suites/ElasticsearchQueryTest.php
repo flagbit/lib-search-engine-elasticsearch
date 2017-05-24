@@ -100,8 +100,6 @@ class ElasticsearchQueryTest extends TestCase
         $elasticsearchQuery->toArray();
     }
     
-    
-    
     public function testExceptionIsThrownIfSearchCriteriaOperationFormatInvalid()
     {
         $this->expectException(InvalidSearchCriteriaOperationFormatException::class);
@@ -243,7 +241,7 @@ class ElasticsearchQueryTest extends TestCase
         $this->assertSame($resultA, $resultB);
     }
 
-    public function testJsonEncodedArrayRepresentationOfElasticsearchQueryContainsAnythingOperatorForEachEmptySource()
+    public function testEmptySourcesTranslateToAnythingOperators()
     {
         $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
         $this->stubContext->method('getSupportedCodes')->willReturn([]);
@@ -266,33 +264,6 @@ class ElasticsearchQueryTest extends TestCase
         );
         
         $this->assertSame($expectedQueryJson, json_encode($result));
-    }
-
-    public function testEmptySourcesTranslateToToMatchingTopLevelAnythingOperators()
-    {
-        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
-        $this->stubContext->method('getSupportedCodes')->willReturn([]);
-        $filters = [];
-
-        $elasticsearchQuery = new ElasticsearchQuery(
-            $this->stubCriteria,
-            $this->stubContext,
-            $this->stubFacetFieldTransformationRegistry,
-            $filters
-        );
-
-        $result = $elasticsearchQuery->toArray();
-        $expectedBoolJson = json_encode((new ElasticsearchQueryOperatorAnything())->getFormattedArray());
-
-        $this->assertArrayHasKey('bool', $result);
-        $this->assertArrayHasKey('filter', $result['bool']);
-        $this->assertArrayHasKey(0, $result['bool']['filter']);
-        $this->assertArrayHasKey(1, $result['bool']['filter']);
-        $this->assertArrayHasKey(2, $result['bool']['filter']);
-        
-        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][0]));
-        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][1]));
-        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][2]));
     }
     
     public function testInvalidSubCriteriaTranslatesToAnythingOperator()
@@ -324,5 +295,32 @@ class ElasticsearchQueryTest extends TestCase
         $this->assertArrayHasKey(0, $result['bool']['filter']);
         
         $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][0]));
+    }
+
+    public function testFiltersSourceContainsOneAttributeWithNoSelectedValuesTranslatesToAnythingOperator()
+    {
+        $this->stubCriteria->expects($this->once())->method('jsonSerialize')->willReturn([]);
+        $this->stubContext->method('getSupportedCodes')->willReturn([]);
+        $filters = [
+            'attribute' => []
+        ];
+
+        $elasticsearchQuery = new ElasticsearchQuery(
+            $this->stubCriteria,
+            $this->stubContext,
+            $this->stubFacetFieldTransformationRegistry,
+            $filters
+        );
+
+        $result = $elasticsearchQuery->toArray();
+        $expectedBoolJson = json_encode(
+            (new ElasticsearchQueryOperatorAnything())->getFormattedArray()
+        );
+
+        $this->assertArrayHasKey('bool', $result);
+        $this->assertArrayHasKey('filter', $result['bool']);
+        $this->assertArrayHasKey(2, $result['bool']['filter']);
+
+        $this->assertSame($expectedBoolJson, json_encode($result['bool']['filter'][2]));
     }
 }
