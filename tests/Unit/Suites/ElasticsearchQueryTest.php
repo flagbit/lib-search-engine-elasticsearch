@@ -199,7 +199,7 @@ class ElasticsearchQueryTest extends TestCase
         );
 
         $result = $elasticsearchQuery->toArray();
-        $expectedQueryArrayJson = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
+        $expectedQueryArray = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
             $expectedCriteriaBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray(
                 (new ElasticsearchQueryBoolShould())->getFormattedArray([
                     (new ElasticsearchQueryOperatorEqual())->getFormattedArray('foo', 'bar'),
@@ -227,7 +227,7 @@ class ElasticsearchQueryTest extends TestCase
         ]);
 
         $this->assertArrayHasKey('bool', $result);
-        $this->assertSame(json_encode($expectedQueryArrayJson), json_encode($result));
+        $this->assertSame(json_encode($expectedQueryArray), json_encode($result));
     }
 
     public function testArrayRepresentationOfElasticsearchQueryIsMemoized()
