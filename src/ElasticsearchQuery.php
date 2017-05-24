@@ -265,6 +265,8 @@ class ElasticsearchQuery
                 (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray($rangeField, (string)$to)
             ]);
         }
+
+        return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
     }
 
     private function getBoolFilterArrayRepresentation(array $contents) : array
