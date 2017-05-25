@@ -22,7 +22,6 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 {
     const DOCUMENT_ID_FIELD_NAME = 'id';
     const PRODUCT_ID_FIELD_NAME = 'product_id';
-    const FULL_TEXT_SEARCH_FIELD_NAME = 'full_text_search_field_name';
 
     const SORTING_SUFFIX = '';
 
