@@ -23,13 +23,15 @@
     "autoload-dev": {
         "psr-4": {
             "LizardsAndPumpkins\\": [
-                "vendor/lizards-and-pumpkins/catalog/tests/Unit/Suites"
+                "vendor/lizards-and-pumpkins/catalog/tests/Unit/Suites",
+                "tests/Integration/Suites"
             ]
         }
     },
     "scripts": {
         "test": [
-            "vendor/bin/phpunit -c tests/Unit/phpunit.xml.dist"
+            "vendor/bin/phpunit -c tests/Unit/phpunit.xml.dist",
+            "vendor/bin/phpunit -c tests/Integration/phpunit.xml.dist"
         ],
         "sniff": "vendor/bin/phpcs --runtime-set ignore_warnings_on_exit true --runtime-set ignore_errors_on_exit true -p --colors --standard=vendor/lizards-and-pumpkins/coding-standards/src/LizardsAndPumpkins/ src/ tests/"
     },
