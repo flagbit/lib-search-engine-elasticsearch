@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Exception\UnsupportedSearchCriteriaConditionException;
-use stdClass;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorNotDefined;
 use PHPUnit\Framework\TestCase;
 use LizardsAndPumpkins\Context\Context;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
@@ -207,7 +207,10 @@ class ElasticsearchQueryTest extends TestCase
                 ])
             ),
             $expectedContextBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
-                (new ElasticsearchQueryOperatorEqual())->getFormattedArray('qux', '2')
+                (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                    (new ElasticsearchQueryOperatorEqual())->getFormattedArray('qux', '2'),
+                    (new ElasticsearchQueryOperatorNotDefined())->getFormattedArray('qux', 'whatever'),
+                ])
             ]),
             $expectedFiltersBool = (new ElasticsearchQueryBoolFilter())->getFormattedArray([
                 $expectedNonRangedAttributeFilterBool = (new ElasticsearchQueryBoolShould())->getFormattedArray([
