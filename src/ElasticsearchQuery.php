@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch;
 
 use LizardsAndPumpkins\Context\Context;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorNotDefined;
 use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolFilter;
@@ -180,16 +181,18 @@ class ElasticsearchQuery
         if (0 === count($supportedCodes)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
-        
-        return $this->getBoolFilterArrayRepresentation(
-            array_map(function ($contextCode) use ($context) {
-                $fieldName = (string)$contextCode;
-                $fieldValue = (string)$context->getValue($contextCode);
-                $operator = $this->getElasticsearchOperator('Equal');
 
-                return $operator->getFormattedArray($fieldName, $fieldValue);
-            }, $supportedCodes)
-        );
+        $contents = array_map(function ($contextCode) use ($context) {
+            $fieldName = (string) $contextCode;
+            $fieldValue = (string) $context->getValue($contextCode);
+
+            return (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                (new ElasticsearchQueryOperatorEqual())->getFormattedArray($fieldName, $fieldValue),
+                (new ElasticsearchQueryOperatorNotDefined())->getFormattedArray($fieldName, $fieldValue),
+            ]);
+        }, $supportedCodes);
+
+        return $this->getBoolFilterArrayRepresentation($contents);
     }
 
     /**
@@ -257,9 +260,13 @@ class ElasticsearchQuery
 
         if ($from !== null && null === $to) {
             return (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray($rangeField, (string)$from);
-        } elseif (null === $from && $to !== null) {
+        }
+
+        if (null === $from && $to !== null) {
             return (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray($rangeField, (string)$to);
-        } elseif ($from !== null && $to !== null) {
+        }
+
+        if ($from !== null && $to !== null) {
             return $this->getBoolFilterArrayRepresentation([
                 (new ElasticsearchQueryOperatorGreaterOrEqualThan())->getFormattedArray($rangeField, (string)$from),
                 (new ElasticsearchQueryOperatorLessOrEqualThan())->getFormattedArray($rangeField, (string)$to)
@@ -269,11 +276,19 @@ class ElasticsearchQuery
         return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
     }
 
+    /**
+     * @param array[] $contents
+     * @return array[]
+     */
     private function getBoolFilterArrayRepresentation(array $contents) : array
     {
         return (new ElasticsearchQueryBoolFilter())->getFormattedArray($contents);
     }
 
+    /**
+     * @param array[] $contents
+     * @return array[]
+     */
     private function getBoolShouldArrayRepresentation(array $contents) : array
     {
         return (new ElasticsearchQueryBoolShould())->getFormattedArray($contents);
