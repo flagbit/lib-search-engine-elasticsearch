@@ -59,7 +59,7 @@ class ElasticsearchQuery
     }
 
     /**
-     * @return mixed[]
+     * @return array[]
      */
     public function toArray() : array
     {
@@ -71,7 +71,7 @@ class ElasticsearchQuery
     }
 
     /**
-     * @return mixed[]
+     * @return array[]
      */
     private function getElasticsearchQueryArrayRepresentation() : array
     {
