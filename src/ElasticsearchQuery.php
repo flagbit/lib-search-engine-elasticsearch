@@ -59,7 +59,7 @@ class ElasticsearchQuery
     }
 
     /**
-     * @return mixed[]
+     * @return array[]
      */
     public function toArray() : array
     {
@@ -71,7 +71,7 @@ class ElasticsearchQuery
     }
 
     /**
-     * @return mixed[]
+     * @return array[]
      */
     private function getElasticsearchQueryArrayRepresentation() : array
     {
@@ -79,9 +79,7 @@ class ElasticsearchQuery
         $contextBool = $this->convertContextIntoElasticsearchBool($this->context);
         $filtersBool = $this->convertFiltersIntoElasticsearchBools($this->filters);
 
-        return $this->getBoolFilterArrayRepresentation(
-            array_merge([$criteriaBool], [$contextBool], [$filtersBool])
-        );
+        return $this->getBoolFilterArrayRepresentation([$criteriaBool, $contextBool, $filtersBool]);
     }
 
     private function convertCriteriaIntoElasticsearchBool(SearchCriteria $criteria) : array
