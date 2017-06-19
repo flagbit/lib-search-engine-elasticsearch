@@ -35,9 +35,9 @@ class ElasticsearchAggregationsRequest
     }
 
     /**
-     * @return mixed[]
+     * @return array[]
      */
-    public function toArray() : array
+    public function toArray(): array
     {
         $fields = $this->facetFiltersToIncludeInResult->getFields();
 
@@ -53,16 +53,16 @@ class ElasticsearchAggregationsRequest
 
     /**
      * @param FacetFilterRequestField[] $fields
-     * @return string[]
+     * @return array[]
      */
-    private function getNonRangedFacetFieldsElasticsearchAggregations(FacetFilterRequestField ...$fields) : array
+    private function getNonRangedFacetFieldsElasticsearchAggregations(FacetFilterRequestField ...$fields): array
     {
         return array_reduce($fields, function (array $carry, FacetFilterRequestField $field) {
             if ($field->isRanged()) {
                 return $carry;
             }
             return array_merge($carry, [
-                (string)$field->getAttributeCode() => [
+                (string) $field->getAttributeCode() => [
                     'terms' => [
                         'field' => (string) $field->getAttributeCode()
                     ]
@@ -73,16 +73,16 @@ class ElasticsearchAggregationsRequest
 
     /**
      * @param FacetFilterRequestField[] $fields
-     * @return string[]
+     * @return array[]
      */
-    private function getRangedFacetFieldsElasticsearchAggregations(FacetFilterRequestField ...$fields) : array
+    private function getRangedFacetFieldsElasticsearchAggregations(FacetFilterRequestField ...$fields): array
     {
         return array_reduce($fields, function (array $carry, FacetFilterRequestField $field) {
-            if (!$field->isRanged()) {
+            if (! $field->isRanged()) {
                 return $carry;
             }
             return array_merge($carry, [
-                (string)$field->getAttributeCode() => [
+                (string) $field->getAttributeCode() => [
                     'range' => [
                         'field' => $field->getAttributeCode(),
                         'ranges' => $this->getRangedFieldElasticsearchAggregationRanges($field)
@@ -94,25 +94,30 @@ class ElasticsearchAggregationsRequest
 
     /**
      * @param FacetFilterRequestRangedField $field
-     * @return string[]
+     * @return mixed[]
      */
-    private function getRangedFieldElasticsearchAggregationRanges(FacetFilterRequestRangedField $field) : array
+    private function getRangedFieldElasticsearchAggregationRanges(FacetFilterRequestRangedField $field): array
     {
-        return array_reduce($field->getRanges(), function (array $carry, FacetFilterRange $range) use ($field) {
-            $from = $range->from();
-            $to = $range->to();
+        $facetFilterRanges = $field->getRanges();
 
-            $facetFieldRange = [];
+        if ([] === $facetFilterRanges) {
+            return [json_decode('{}')];
+        }
 
-            if ($from !== null && null === $to) {
-                $facetFieldRange = [['from' => $from]];
-            } elseif (null === $from && $to !== null) {
-                $facetFieldRange = [['to' => $to]];
-            } elseif ($from !== null && $to !== null) {
-                $facetFieldRange = [['from' => $from, 'to' => $to]];
+        return array_map(function (FacetFilterRange $range) use ($field) {
+            if ($range->from() !== null && null === $range->to()) {
+                return ['from' => $range->from()];
             }
 
-            return array_merge($carry, $facetFieldRange);
-        }, []);
+            if (null === $range->from() && $range->to() !== null) {
+                return ['to' => $range->to()];
+            }
+
+            if ($range->from() !== null && $range->to() !== null) {
+                return ['from' => $range->from(), 'to' => $range->to()];
+            }
+
+            return json_decode('{}');
+        }, $facetFilterRanges);
     }
 }
