@@ -8,7 +8,7 @@ interface ElasticsearchHttpClient
 {
     const UPDATE_SERVLET = '';
     const SEARCH_SERVLET = '_search';
-    const CLEAR_SERVERLET = '_delete_by_query';
+    const CLEAR_SERVERLET = '_delete_by_query?refresh';
 
     /**
      * @param string $id
