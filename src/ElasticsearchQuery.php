@@ -10,6 +10,7 @@ use LizardsAndPumpkins\DataPool\SearchEngine\FacetFilterRange;
 use LizardsAndPumpkins\DataPool\SearchEngine\SearchCriteria\SearchCriteria;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolFilter;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolShould;
+use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolMust;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperator;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorEqual;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator\ElasticsearchQueryOperatorAnything;
@@ -66,7 +67,7 @@ class ElasticsearchQuery
         if (null === $this->memoizedElasticsearchQueryArrayRepresentation) {
             $this->memoizedElasticsearchQueryArrayRepresentation = $this->getElasticsearchQueryArrayRepresentation();
         }
-        
+
         return $this->memoizedElasticsearchQueryArrayRepresentation;
     }
 
@@ -86,7 +87,7 @@ class ElasticsearchQuery
     {
         $criteriaJson = json_encode($criteria);
         $criteriaArray = json_decode($criteriaJson, true);
-        
+
         if (0 === count($criteriaArray)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
@@ -150,7 +151,7 @@ class ElasticsearchQuery
                 sprintf('Invalid search criteria operation format')
             );
         }
-        
+
         $operator = $this->getElasticsearchOperator($criteria['operation']);
         return $operator->getFormattedArray((string)$criteria['fieldName'], (string)$criteria['fieldValue']);
     }
@@ -175,7 +176,7 @@ class ElasticsearchQuery
     private function convertContextIntoElasticsearchBool(Context $context) : array
     {
         $supportedCodes = $context->getSupportedCodes();
-        
+
         if (0 === count($supportedCodes)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
@@ -289,6 +290,8 @@ class ElasticsearchQuery
      */
     private function getBoolShouldArrayRepresentation(array $contents) : array
     {
-        return (new ElasticsearchQueryBoolShould())->getFormattedArray($contents);
+        // you can also use new ElasticsearchQueryBoolShould() then you will find any combination
+        // with ElasticsearchQueryBoolMust() you will find the exact combination of words
+        return (new ElasticsearchQueryBoolMust())->getFormattedArray($contents);
     }
 }
