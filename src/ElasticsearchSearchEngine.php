@@ -98,7 +98,7 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     public function clear()
     {
-        $request = ['query' => ['match_phrase' => new stdClass()]];
+        $request = ['query' => ['match_all' => new stdClass()]];
         $this->client->clear($request);
     }
 
