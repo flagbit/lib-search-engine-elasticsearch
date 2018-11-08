@@ -35,6 +35,11 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
      */
     private $facetFieldTransformationRegistry;
 
+    /**
+     * ElasticsearchSearchEngine constructor.
+     * @param ElasticsearchHttpClient $client
+     * @param FacetFieldTransformationRegistry $facetFieldTransformationRegistry
+     */
     public function __construct(
         ElasticsearchHttpClient $client,
         FacetFieldTransformationRegistry $facetFieldTransformationRegistry
@@ -43,15 +48,23 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         $this->facetFieldTransformationRegistry = $facetFieldTransformationRegistry;
     }
 
+    /**
+     * @param SearchDocument $document
+     */
     public function addDocument(SearchDocument $document)
     {
         $elasticsearchDocument = ElasticsearchDocumentBuilder::fromSearchDocument($document);
         $this->client->update(
-            $elasticsearchDocument[ElasticsearchSearchEngine::DOCUMENT_ID_FIELD_NAME],
+            $elasticsearchDocument[self::DOCUMENT_ID_FIELD_NAME],
             $elasticsearchDocument
         );
     }
 
+    /**
+     * @param SearchCriteria $criteria
+     * @param QueryOptions $queryOptions
+     * @return SearchEngineResponse
+     */
     public function query(SearchCriteria $criteria, QueryOptions $queryOptions) : SearchEngineResponse
     {
         $filterSelection = $queryOptions->getFilterSelection();
@@ -85,13 +98,14 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
     public function clear()
     {
-        $request = ['query' => ['match_all' => new stdClass()]];
+        $request = ['query' => ['match' => new stdClass()]];
         $this->client->clear($request);
     }
 
     /**
      * @param ElasticsearchResponse $response
      * @param SearchCriteria $criteria
+     * @param QueryOptions $queryOptions
      * @param array[] $filterSelection
      * @param FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
      * @return FacetFieldCollection
@@ -118,6 +132,7 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
     /**
      * @param array[] $filterSelection
      * @param SearchCriteria $criteria
+     * @param QueryOptions $queryOptions
      * @param FacetFiltersToIncludeInResult $facetFiltersToIncludeInResult
      * @return FacetField[]
      */
@@ -151,29 +166,35 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         return $facetFields;
     }
 
+    /**
+     * @param ElasticsearchQuery $query
+     * @param ElasticsearchAggregationsRequest $aggregationsRequest
+     * @param QueryOptions $queryOptions
+     * @return ElasticsearchResponse
+     */
     private function queryElasticsearch(
         ElasticsearchQuery $query,
         ElasticsearchAggregationsRequest $aggregationsRequest,
         QueryOptions $queryOptions
     ) : ElasticsearchResponse {
         $request = [];
-        
+
         $query = $query->toArray();
-        if (count($query) !== 0) {
+        if (\count($query) !== 0) {
             $request['query'] = $query;
         }
-        
+
         $aggregations = $aggregationsRequest->toArray();
-        if (count($aggregations) !== 0) {
+        if (\count($aggregations) !== 0) {
             $request['aggregations'] = $aggregations;
         }
 
         $rowsPerPage = $queryOptions->getRowsPerPage();
         $request['size'] = $rowsPerPage;
-        
+
         $offset = $queryOptions->getPageNumber() * $rowsPerPage;
         $request['from'] = $offset;
-        
+
         $sortOrderArray = $this->getSortOrderArray($queryOptions->getSortBy());
         $request['sort'] = $sortOrderArray;
 
@@ -185,6 +206,10 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         );
     }
 
+    /**
+     * @param SortBy $sortOrderConfig
+     * @return array
+     */
     private function getSortOrderArray(SortBy $sortOrderConfig) : array
     {
         return [
@@ -196,8 +221,15 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         ];
     }
 
-    public static function create(ElasticsearchHttpClient $elasticsearchCurlClient, $facetFieldTransformationRegistry)
-    {
+    /**
+     * @param ElasticsearchHttpClient $elasticsearchCurlClient
+     * @param $facetFieldTransformationRegistry
+     * @return ElasticsearchSearchEngine
+     */
+    public static function create (
+        ElasticsearchHttpClient $elasticsearchCurlClient,
+        $facetFieldTransformationRegistry
+    ): ElasticsearchSearchEngine {
         return new self($elasticsearchCurlClient, $facetFieldTransformationRegistry);
     }
 }

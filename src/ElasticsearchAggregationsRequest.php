@@ -64,7 +64,8 @@ class ElasticsearchAggregationsRequest
             return array_merge($carry, [
                 (string) $field->getAttributeCode() => [
                     'terms' => [
-                        'field' => (string) $field->getAttributeCode()
+                        'field' => (string) $field->getAttributeCode(),
+                        'size' => '100'
                     ]
                 ]
             ]);
