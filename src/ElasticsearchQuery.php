@@ -88,7 +88,7 @@ class ElasticsearchQuery
         $criteriaJson = json_encode($criteria);
         $criteriaArray = json_decode($criteriaJson, true);
 
-        if (0 === count($criteriaArray)) {
+        if (0 === \count($criteriaArray)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
 
@@ -105,8 +105,8 @@ class ElasticsearchQuery
     {
         if (isset($criteria['condition'])) {
             if (!isset($criteria['criteria'])
-                || !is_array($criteria['criteria'])
-                || 0 === count($criteria['criteria'])
+                || !\is_array($criteria['criteria'])
+                || 0 === \count($criteria['criteria'])
             ) {
                 return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
             }
@@ -177,7 +177,7 @@ class ElasticsearchQuery
     {
         $supportedCodes = $context->getSupportedCodes();
 
-        if (0 === count($supportedCodes)) {
+        if (0 === \count($supportedCodes)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
 
@@ -201,7 +201,7 @@ class ElasticsearchQuery
     private function convertFiltersIntoElasticsearchBools($filters): array
     {
         $innerBools = array_reduce(array_keys($filters), function (array $carry, $filterCode) use ($filters) {
-            if (count($filters[$filterCode]) > 0) {
+            if (\count($filters[$filterCode]) > 0) {
                 $carry[] = $this->getBoolShouldArrayRepresentation(
                     $this->getElasticsearchBoolsFromFilterValues($filterCode, $filters[$filterCode])
                 );
@@ -209,7 +209,7 @@ class ElasticsearchQuery
             return $carry;
         }, []);
 
-        if (0 === count($innerBools)) {
+        if (0 === \count($innerBools)) {
             return (new ElasticsearchQueryOperatorAnything())->getFormattedArray();
         }
 
