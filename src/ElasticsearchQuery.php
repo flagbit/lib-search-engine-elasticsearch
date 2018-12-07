@@ -290,8 +290,6 @@ class ElasticsearchQuery
      */
     private function getBoolShouldArrayRepresentation(array $contents) : array
     {
-        // you can also use new ElasticsearchQueryBoolShould() then you will find any combination
-        // with ElasticsearchQueryBoolMust() you will find the exact combination of words
-        return (new ElasticsearchQueryBoolMust())->getFormattedArray($contents);
+        return (new ElasticsearchQueryBoolShould())->getFormattedArray($contents);
     }
 }
