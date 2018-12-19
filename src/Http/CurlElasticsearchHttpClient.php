@@ -43,7 +43,7 @@ class CurlElasticsearchHttpClient implements ElasticsearchHttpClient
         $url = $this->constructUrl(ElasticsearchHttpClient::SEARCH_SERVLET);
 
         $curlHandle = $this->createCurlHandle($url);
-        curl_setopt($curlHandle, CURLOPT_CUSTOMREQUEST, 'XGET');
+        curl_setopt($curlHandle, CURLOPT_CUSTOMREQUEST, 'GET');
         curl_setopt($curlHandle, CURLOPT_POSTFIELDS, json_encode($parameters));
 
         return $this->executeCurlRequest($curlHandle);
