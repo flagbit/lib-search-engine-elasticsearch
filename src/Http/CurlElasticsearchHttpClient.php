@@ -98,6 +98,11 @@ class CurlElasticsearchHttpClient implements ElasticsearchHttpClient
     private function executeCurlRequest($curlHandle)
     {
         $responseJson = curl_exec($curlHandle);
+
+        if (curl_errno($curlHandle) !== 0) {
+            throw new \RuntimeException(curl_strerror(curl_errno($curlHandle)));
+        }
+
         $response = json_decode($responseJson, true);
         $this->validateResponseType($responseJson);
 
