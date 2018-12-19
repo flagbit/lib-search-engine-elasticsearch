@@ -1,27 +1,12 @@
 <?xml version="1.0"?>
 <phpunit
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:noNamespaceSchemaLocation="http://schema.phpunit.de/5.3/phpunit.xsd"
-        backupGlobals="false"
-        backupStaticAttributes="false"
+        xsi:noNamespaceSchemaLocation="http://schema.phpunit.de/6.0/phpunit.xsd"
         cacheTokens="false"
         bootstrap="bootstrap.php"
         colors="true"
-        convertErrorsToExceptions="true"
-        convertNoticesToExceptions="true"
-        convertWarningsToExceptions="true"
         forceCoversAnnotation="true"
-        processIsolation="false"
-        stopOnError="false"
-        stopOnFailure="false"
-        stopOnIncomplete="false"
-        stopOnSkipped="false"
-        timeoutForSmallTests="1"
-        timeoutForMediumTests="10"
-        timeoutForLargeTests="60"
-        beStrictAboutTestsThatDoNotTestAnything="true"
-        beStrictAboutOutputDuringTests="true"
-        verbose="false">
+        beStrictAboutOutputDuringTests="true">
     <testsuite name="Lizards and Pumpkins Elasticsearch Search Engine Module Integration Tests">
         <directory>Suites</directory>
     </testsuite>
@@ -32,7 +17,7 @@
     </filter>
     <php>
         <!--
-        <server name="LP_ELASTICSEARCH_INTEGRATION_TEST_CONNECTION_PATH" value="http://localhost:9200/"/>
+        <server name="LP_ELASTICSEARCH_INTEGRATION_TEST_CONNECTION_PATH" value="http://localhost:9200/your-index"/>
         -->
         <server name="LS_ELASTICSEARCH_FORCE_REFRESH" value="1"/>
     </php>
