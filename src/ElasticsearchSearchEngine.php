@@ -20,7 +20,7 @@ use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetField
 
 class ElasticsearchSearchEngine implements SearchEngine, Clearable
 {
-    const FULL_TEXT_SEARCH_FIELD_NAME = 'full_text_search';
+    const SEARCH_FIELDS = ['name', 'manufacturer'];
     const DOCUMENT_ID_FIELD_NAME = 'id';
     const PRODUCT_ID_FIELD_NAME = 'product_id';
 
