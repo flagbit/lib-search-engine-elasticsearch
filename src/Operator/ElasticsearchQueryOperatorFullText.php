@@ -14,7 +14,8 @@ class ElasticsearchQueryOperatorFullText implements ElasticsearchQueryOperator
         return (new ElasticsearchQueryBoolShould())->getFormattedArray([
             'multi_match' => [
                 'fields' => ElasticsearchSearchEngine::SEARCH_FIELDS,
-                'query' => $fieldValue
+                'query' => $fieldValue,
+                'fuzziness' => 1
             ]
         ]);
     }
