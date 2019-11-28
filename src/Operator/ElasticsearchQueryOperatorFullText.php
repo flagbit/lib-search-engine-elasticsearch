@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Operator;
 
-use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolMust;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\Bool\ElasticsearchQueryBoolShould;
 use LizardsAndPumpkins\DataPool\SearchEngine\Elasticsearch\ElasticsearchSearchEngine;
 
@@ -14,9 +13,9 @@ class ElasticsearchQueryOperatorFullText implements ElasticsearchQueryOperator
     {
         if (true === $this->isQuotationMarksSet($fieldValue)) {
             $fieldValue = str_replace('"','', $fieldValue);
-            return (new ElasticsearchQueryBoolMust())->getFormattedArray([
-                'term' => [
-                    'name.keyword' => $fieldValue
+            return (new ElasticsearchQueryBoolShould())->getFormattedArray([
+                'match_phrase' => [
+                    ElasticsearchSearchEngine::NAME_FIELD => $fieldValue
                 ]
             ]);
         }
