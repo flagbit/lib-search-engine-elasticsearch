@@ -11,11 +11,30 @@ class ElasticsearchQueryOperatorFullText implements ElasticsearchQueryOperator
 {
     public function getFormattedArray(string $fieldName, string $fieldValue) : array
     {
-        return (new ElasticsearchQueryBoolShould())->getFormattedArray([
+        $fuzziness = 1;
+        if (true === $this->isQuotationMarksSet($fieldValue)) {
+            $fieldValue = str_replace('"','', $fieldValue);
+            $fuzziness = 0;
+        }
+
+        $return = (new ElasticsearchQueryBoolShould())->getFormattedArray([
             'multi_match' => [
                 'fields' => ElasticsearchSearchEngine::SEARCH_FIELDS,
-                'query' => $fieldValue
+                'query' => $fieldValue,
+                'fuzziness' => $fuzziness
             ]
         ]);
+
+        return $return;
+    }
+
+    /**
+     * @param string $query
+     * @return bool
+     */
+    private function isQuotationMarksSet(string $query): bool
+    {
+        preg_match('/(%22(.*)%22|"(.*)")/', $query, $output);
+        return false === empty($output);
     }
 }
