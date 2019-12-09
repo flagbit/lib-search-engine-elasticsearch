@@ -77,11 +77,8 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
     public function query(SearchCriteria $criteria, QueryOptions $queryOptions) : SearchEngineResponse
     {
         $filterSelection = $queryOptions->getFilterSelection();
-        $query = new ElasticsearchQuery(
-            $criteria,
-            $queryOptions->getContext(),
-            $this->facetFieldTransformationRegistry,
-            $filterSelection
+        $query = new ElasticsearchQueryV2(
+            $criteria
         );
 
         $facetFiltersToIncludeInResult = $queryOptions->getFacetFiltersToIncludeInResult();
@@ -156,11 +153,8 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
 
         foreach ($selectedAttributeCodes as $attributeCodeString) {
             $selectedFiltersExceptCurrentOne = array_diff_key($filterSelection, [$attributeCodeString => []]);
-            $query = new ElasticsearchQuery(
-                $criteria,
-                $queryOptions->getContext(),
-                $this->facetFieldTransformationRegistry,
-                $selectedFiltersExceptCurrentOne
+            $query = new ElasticsearchQueryV2(
+                $criteria
             );
 
             $aggregationsRequest = new ElasticsearchAggregationsRequest(
@@ -176,13 +170,13 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
     }
 
     /**
-     * @param ElasticsearchQuery $query
+     * @param ElasticsearchQueryV2 $query
      * @param ElasticsearchAggregationsRequest $aggregationsRequest
      * @param QueryOptions $queryOptions
      * @return ElasticsearchResponse
      */
     private function queryElasticsearch(
-        ElasticsearchQuery $query,
+        ElasticsearchQueryV2 $query,
         ElasticsearchAggregationsRequest $aggregationsRequest,
         QueryOptions $queryOptions
     ) : ElasticsearchResponse {
