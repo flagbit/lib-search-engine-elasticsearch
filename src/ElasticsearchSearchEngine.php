@@ -198,6 +198,7 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         $offset = $queryOptions->getPageNumber() * $rowsPerPage;
         $request['from'] = $offset;
 
+        $request['track_scores'] = true;
         $sortOrderArray = $this->getSortOrderArray($queryOptions->getSortBy());
         $request['sort'] = $sortOrderArray;
 
@@ -216,6 +217,11 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
     private function getSortOrderArray(SortBy $sortOrderConfig) : array
     {
         return [
+            [
+                '_score' => [
+                    'order' => 'desc'
+                ]
+            ],
             [
                 sprintf('%s%s', $sortOrderConfig->getAttributeCode(), self::SORTING_SUFFIX) => [
                     'order' => (string)$sortOrderConfig->getSelectedDirection()
