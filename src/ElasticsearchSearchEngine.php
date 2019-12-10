@@ -21,12 +21,12 @@ use LizardsAndPumpkins\DataPool\SearchEngine\FacetFieldTransformation\FacetField
 class ElasticsearchSearchEngine implements SearchEngine, Clearable
 {
     const SEARCH_FIELDS = [
-        'name.text',
-        'manufacturer.text',
-        'model_name.text',
-        'model.text',
-        'ean.text',
-        'children_ean'
+        'name.text^5',
+        'manufacturer.text^5',
+        'model_name.text^8',
+        'model.text^5',
+        'ean.text^5',
+        'children_ean^5'
     ];
     const NAME_FIELD = 'name.text';
     const DOCUMENT_ID_FIELD_NAME = 'id';
