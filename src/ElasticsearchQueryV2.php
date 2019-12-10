@@ -219,7 +219,7 @@ class ElasticsearchQueryV2
                 'range' => [
                     'created_at' => [
                         'boost' => 4,
-                        'gte' => $currentDate->modify('-1 months')->format('Y-m-d').'T00:00:00'
+                        'gte' => $currentDate->modify('-2 months')->format('Y-m-d').'T00:00:00'
                     ]
                 ]
             ],
@@ -227,7 +227,7 @@ class ElasticsearchQueryV2
                 'range' => [
                     'created_at' => [
                         'boost' => 3,
-                        'gte' => $currentDate->modify('-1 months')->format('Y-m-d').'T00:00:00'
+                        'gte' => $currentDate->modify('-3 months')->format('Y-m-d').'T00:00:00'
                     ]
                 ]
             ],
