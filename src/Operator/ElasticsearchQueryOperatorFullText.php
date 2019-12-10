@@ -25,7 +25,8 @@ class ElasticsearchQueryOperatorFullText implements ElasticsearchQueryOperator
             'multi_match' => [
                 'fields' => ElasticsearchSearchEngine::SEARCH_FIELDS,
                 'query' => $fieldValue,
-                'fuzziness' => 1
+                'fuzziness' => 1,
+                'operator' => 'and'
             ]
         ]);
     }
