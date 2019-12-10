@@ -21,12 +21,18 @@ class ElasticsearchQueryOperatorFullText implements ElasticsearchQueryOperator
             ]);
         }
 
-        return (new ElasticsearchQueryBoolMust())->getFormattedArray([
+        return (new ElasticsearchQueryBoolShould())->getFormattedArray([
             'multi_match' => [
                 'fields' => ElasticsearchSearchEngine::SEARCH_FIELDS,
                 'query' => $fieldValue,
                 'fuzziness' => 1,
                 'operator' => 'and'
+            ],
+            'multi_match' => [
+                'fields' => ElasticsearchSearchEngine::SEARCH_FIELDS,
+                'query' => $fieldValue,
+                'operator' => 'and',
+                'type' => 'most_fields'
             ]
         ]);
     }
