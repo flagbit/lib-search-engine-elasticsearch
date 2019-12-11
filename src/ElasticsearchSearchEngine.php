@@ -78,7 +78,9 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
     {
         $filterSelection = $queryOptions->getFilterSelection();
         $query = new ElasticsearchQueryV2(
-            $criteria
+            $criteria,
+            $queryOptions->getQueryFromString(),
+            $queryOptions->getCriteriaFromString()
         );
 
         $facetFiltersToIncludeInResult = $queryOptions->getFacetFiltersToIncludeInResult();
@@ -154,7 +156,9 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         foreach ($selectedAttributeCodes as $attributeCodeString) {
             $selectedFiltersExceptCurrentOne = array_diff_key($filterSelection, [$attributeCodeString => []]);
             $query = new ElasticsearchQueryV2(
-                $criteria
+                $criteria,
+                $queryOptions->getQueryFromString(),
+                $queryOptions->getCriteriaFromString()
             );
 
             $aggregationsRequest = new ElasticsearchAggregationsRequest(

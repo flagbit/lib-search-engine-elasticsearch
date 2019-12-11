@@ -26,14 +26,14 @@ class ElasticsearchQueryV2
     private $criteria;
 
     /**
-     * @var Context
+     * @var null|SearchCriteria
      */
-    private $context;
+    private $queryFromString;
 
     /**
-     * @var mixed[]
+     * @var null|SearchCriteria
      */
-    private $filters;
+    private $criteriaFromString;
 
     /**
      * @var mixed[]
@@ -45,9 +45,13 @@ class ElasticsearchQueryV2
     private $facetFieldTransformationRegistry;
 
     public function __construct(
-        SearchCriteria $criteria
+        SearchCriteria $criteria,
+        $queryFromString,
+        $criteriaFromString
     ) {
         $this->criteria = $criteria;
+        $this->queryFromString = $queryFromString;
+        $this->criteriaFromString = $criteriaFromString;
     }
 
     /**
@@ -67,12 +71,24 @@ class ElasticsearchQueryV2
      */
     private function getElasticsearchQueryArrayRepresentation(): array
     {
+        // criteria contains query and sub-criteria, for multiple-mode
         $criteriaMustBool = $this->convertCriteriaIntoElasticsearchBool($this->criteria);
-        $dateBoostBool = $this->getDateBoostCriteriaIntoElasticsearchBool();
+        // this part for query in one-mode, criteria from string only contains sub-criteria
+        if (null !== $this->criteriaFromString) {
+            $criteriaMustBool = $this->convertCriteriaIntoElasticsearchBool($this->criteriaFromString);
+        }
+
+        $shouldBool = [$this->getDateBoostCriteriaIntoElasticsearchBool()];
+        if (null !== $this->queryFromString) {
+            $shouldBool = [
+                $this->convertCriteriaIntoElasticsearchBool($this->queryFromString),
+                $this->getDateBoostCriteriaIntoElasticsearchBool()
+            ];
+        }
 
         foreach ($criteriaMustBool as $boolKey => $mustBoolContent) {
             if ($boolKey === 'bool') {
-                $criteriaMustBool['bool']['should'] = $dateBoostBool; // optional should date bool
+                $criteriaMustBool['bool']['should'] = $shouldBool;
             }
         }
 
