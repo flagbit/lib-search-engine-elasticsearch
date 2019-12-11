@@ -73,15 +73,11 @@ class ElasticsearchQueryV2
     {
         // criteria contains query and sub-criteria, for multiple-mode
         $criteriaMustBool = $this->convertCriteriaIntoElasticsearchBool($this->criteria);
-        // this part for query in one-mode, criteria from string only contains sub-criteria
-        if (null !== $this->criteriaFromString) {
-            $criteriaMustBool = $this->convertCriteriaIntoElasticsearchBool($this->criteriaFromString);
-        }
 
         $shouldBool = [$this->getDateBoostCriteriaIntoElasticsearchBool()];
         if (null !== $this->queryFromString) {
             $shouldBool = [
-                $this->convertCriteriaIntoElasticsearchBool($this->queryFromString),
+                $this->getMostFieldsShould($this->queryFromString),
                 $this->getDateBoostCriteriaIntoElasticsearchBool()
             ];
         }
@@ -93,6 +89,20 @@ class ElasticsearchQueryV2
         }
 
         return $criteriaMustBool;
+    }
+
+    /**
+     * @param SearchCriteria $queryFromString
+     * @return array
+     */
+    private function getMostFieldsShould(SearchCriteria $queryFromString): array
+    {
+        $criteria = $queryFromString->toArray();
+        if (isset($criteria['operation'])) {
+            $criteria['operation'] = 'MostFields';
+        }
+
+        return $this->createPrimitiveOperator($criteria);
     }
 
     private function convertCriteriaIntoElasticsearchBool(SearchCriteria $criteria) : array
@@ -264,14 +274,5 @@ class ElasticsearchQueryV2
                 ]
             ]
         ];
-    }
-
-    /**
-     * @param array[] $contents
-     * @return array[]
-     */
-    private function getBoolFilterArrayRepresentation(array $contents) : array
-    {
-        return (new ElasticsearchQueryBoolFilter())->getFormattedArray($contents);
     }
 }
