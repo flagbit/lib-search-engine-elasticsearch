@@ -220,26 +220,26 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
      */
     private function getSortOrderArray(SortBy $sortOrderConfig) : array
     {
-        // default sortOrder should use score
-        $sortOrder = [
-            [
-                '_score' => [
-                    'order' => 'desc'
-                ]
-            ],
-            [
-                sprintf('%s%s', $sortOrderConfig->getAttributeCode(), self::SORTING_SUFFIX) => [
-                    'order' => (string)$sortOrderConfig->getSelectedDirection()
-                ]
+        $sortOrderAttributeCode = sprintf('%s%s', $sortOrderConfig->getAttributeCode(), self::SORTING_SUFFIX);
+        $sortByScore = [
+            '_score' => [
+                'order' => 'desc'
             ]
         ];
-        if ($sortOrderConfig->getAttributeCode() === 'price') {
+        $sortByAttributeCode = [
+            $sortOrderAttributeCode => [
+                'order' => (string)$sortOrderConfig->getSelectedDirection()
+            ]
+        ];
+        // default sortOrder should use score
+        $sortOrder = [
+            $sortByScore,
+            $sortByAttributeCode
+        ];
+        if ($sortOrderAttributeCode === 'price') {
             $sortOrder = [
-                [
-                    sprintf('%s%s', $sortOrderConfig->getAttributeCode(), self::SORTING_SUFFIX) => [
-                        'order' => (string)$sortOrderConfig->getSelectedDirection()
-                    ]
-                ]
+                $sortByAttributeCode,
+                $sortByScore
             ];
         }
         return $sortOrder;

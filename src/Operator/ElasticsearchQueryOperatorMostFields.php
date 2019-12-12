@@ -11,6 +11,9 @@ class ElasticsearchQueryOperatorMostFields implements ElasticsearchQueryOperator
 {
     public function getFormattedArray(string $fieldName, string $fieldValue) : array
     {
+        if (true === $this->isQuotationMarksSet($fieldValue)) {
+            $fieldValue = str_replace('"','', $fieldValue);
+        }
         return (new ElasticsearchQueryBoolShould())->getFormattedArray(
             [
                 'multi_match' => [
@@ -20,5 +23,15 @@ class ElasticsearchQueryOperatorMostFields implements ElasticsearchQueryOperator
                 ]
             ]
         );
+    }
+
+    /**
+     * @param string $query
+     * @return bool
+     */
+    private function isQuotationMarksSet(string $query): bool
+    {
+        preg_match('/(%22(.*)%22|"(.*)")/', $query, $output);
+        return false === empty($output);
     }
 }
