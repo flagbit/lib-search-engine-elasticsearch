@@ -31,11 +31,6 @@ class ElasticsearchQueryV2
     private $queryFromString;
 
     /**
-     * @var null|SearchCriteria
-     */
-    private $criteriaFromString;
-
-    /**
      * @var mixed[]
      */
     private $memoizedElasticsearchQueryArrayRepresentation;
@@ -46,12 +41,10 @@ class ElasticsearchQueryV2
 
     public function __construct(
         SearchCriteria $criteria,
-        $queryFromString,
-        $criteriaFromString
+        $queryFromString
     ) {
         $this->criteria = $criteria;
         $this->queryFromString = $queryFromString;
-        $this->criteriaFromString = $criteriaFromString;
     }
 
     /**

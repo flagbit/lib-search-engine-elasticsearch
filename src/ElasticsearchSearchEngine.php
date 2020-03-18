@@ -26,7 +26,8 @@ class ElasticsearchSearchEngine implements SearchEngine, Clearable
         'model_name.text^8',
         'model.text^5',
         'ean.text^5',
-        'children_ean^5'
+        'children_ean^5',
+        'material.text^3',
     ];
     const NAME_FIELD = 'name.text';
     const DOCUMENT_ID_FIELD_NAME = 'id';
