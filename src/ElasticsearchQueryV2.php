@@ -261,7 +261,7 @@ class ElasticsearchQueryV2
             [
                 'range' => [
                     'created_at' => [
-                        'boost' => -5,
+                        'boost' => 0,
                         'lte' => $currentDate->modify('+1 days')->format('Y-m-d').'T00:00:00'
                     ]
                 ]
