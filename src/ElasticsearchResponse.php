@@ -53,7 +53,7 @@ class ElasticsearchResponse
 
     public function getTotalNumberOfResults() : int
     {
-        return $this->response['hits']['total'] ?? 0;
+        return $this->response['hits']['total']['value'] ?? 0;
     }
 
     /**
